@@ -49,6 +49,7 @@
 ****************************************************************************/
 
 #include "compositor.h"
+#include "accelerometer.h"
 
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -204,13 +205,60 @@ Compositor::~Compositor()
 {
 }
 
+static int x = 0;
+
 void Compositor::create()
 {
     QWaylandOutput *output = new QWaylandOutput(this, m_window);
-    QWaylandOutputMode mode(QSize(800, 600), 60000);
+    QWaylandOutputMode mode(QSize(800, 1280), 60000);
     output->addMode(mode, true);
     QWaylandCompositor::create();
     output->setCurrentMode(mode);
+
+    setDefaultOutput(output);
+
+    qInfo() << "XXX MANUF " << output->manufacturer() << "MODEL" << output->model();
+    qInfo() << "XXX MANUF " << defaultOutput()->manufacturer() << "MODEL" << defaultOutput()->model();
+
+    output->setTransform(QWaylandOutput::Transform270);
+
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this]() {
+        qInfo() << "XXX TRANSFORM" << x;
+        defaultOutput()->setTransform((QWaylandOutput::Transform) x);
+        x++;
+        x %= 8;
+    });
+
+    timer->start(1000);
+
+#if 0
+    QString accelerometerPath =  QString::fromLocal8Bit(qgetenv("NUBBOCK_ACCELEROMETER_DEV"));
+
+    if (!accelerometerPath.isEmpty()) {
+        qInfo() << "USING ACCEL" << accelerometerPath;
+        accelerometer = new Accelerometer(accelerometerPath, this);
+
+        QObject::connect(accelerometer, &Accelerometer::orientationChanged, this, [this, output](Accelerometer::Orientation o) {
+            qInfo() << "ORIENTATION CHANGED!";
+            switch (o) {
+            case Accelerometer::Standing:
+            default:
+                defaultOutput()->setTransform(QWaylandOutput::Transform270);
+                break;
+            case Accelerometer::Laying:
+                defaultOutput()->setTransform(QWaylandOutput::Transform90);
+                break;
+            }
+
+            defaultOutput()->update();
+        });
+
+        accelerometer->emitCurrent();
+    }
+#endif
+
+
 
     connect(this, &QWaylandCompositor::surfaceCreated, this, &Compositor::onSurfaceCreated);
     connect(defaultSeat(), &QWaylandSeat::cursorSurfaceRequest, this, &Compositor::adjustCursorSurface);
@@ -229,6 +277,9 @@ void Compositor::onSurfaceCreated(QWaylandSurface *surface)
     View *view = new View(this);
     view->setSurface(surface);
     view->setOutput(outputFor(m_window));
+
+    outputFor(m_window)->setTransform(QWaylandOutput::Transform270);
+
     m_views << view;
     connect(view, &QWaylandView::surfaceDestroyed, this, &Compositor::viewSurfaceDestroyed);
     connect(surface, &QWaylandSurface::offsetForNextFrame, view, &View::onOffsetForNextFrame);
@@ -260,14 +311,12 @@ void Compositor::viewSurfaceDestroyed()
     connect(view, &View::animationDone, this, &Compositor::viewAnimationDone);
 }
 
-
 void Compositor::viewAnimationDone()
 {
     View *view = qobject_cast<View*>(sender());
     m_views.removeAll(view);
     delete view;
 }
-
 
 View * Compositor::findView(const QWaylandSurface *s) const
 {

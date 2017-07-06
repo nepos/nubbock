@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     Compositor compositor(&window);
     window.setCompositor(&compositor);
     compositor.create();
-    window.resize(800,600);
+    window.resize(222, 444);
     window.show();
 
     return app.exec();

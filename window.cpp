@@ -76,24 +76,16 @@ void Window::setCompositor(Compositor *comp) {
 
 void Window::initializeGL()
 {
-    QImage backgroundImage = QImage(QLatin1String(":/background.jpg")).rgbSwapped();
-    backgroundImage.invertPixels();
-    m_backgroundTexture = new QOpenGLTexture(backgroundImage, QOpenGLTexture::DontGenerateMipMaps);
-    m_backgroundTexture->setMinificationFilter(QOpenGLTexture::Nearest);
-    m_backgroundImageSize = backgroundImage.size();
-    m_textureBlitter.create();
-}
+    QString backgroundImagePath =  QString::fromLocal8Bit(qgetenv("NUBBOCK_BACKGROUND_IMAGE"));
 
-void Window::drawBackground()
-{
-    for (int y = 0; y < height(); y += m_backgroundImageSize.height()) {
-        for (int x = 0; x < width(); x += m_backgroundImageSize.width()) {
-            QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(QRect(QPoint(x,y), m_backgroundImageSize), QRect(QPoint(0,0), size()));
-            m_textureBlitter.blit(m_backgroundTexture->textureId(),
-                              targetTransform,
-                              QOpenGLTextureBlitter::OriginTopLeft);
-        }
+    if (!backgroundImagePath.isEmpty()) {
+        QImage backgroundImage = QImage(backgroundImagePath);
+        m_backgroundTexture = new QOpenGLTexture(backgroundImage, QOpenGLTexture::DontGenerateMipMaps);
+        m_backgroundTexture->setMinificationFilter(QOpenGLTexture::Nearest);
+        m_backgroundImageSize = backgroundImage.size();
     }
+
+    m_textureBlitter.create();
 }
 
 QPointF Window::getAnchorPosition(const QPointF &position, int resizeEdge, const QSize &windowSize)
@@ -118,11 +110,18 @@ void Window::paintGL()
 {
     m_compositor->startRender();
     QOpenGLFunctions *functions = context()->functions();
-    functions->glClearColor(1.f, .6f, .0f, 0.5f);
+    functions->glClearColor(.0f, .165f, .31f, 0.5f);
     functions->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     m_textureBlitter.bind();
-    drawBackground();
+
+    if (m_backgroundTexture) {
+        QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(QRect(QPoint(0, 0), m_backgroundImageSize),
+                                                                            QRect(QPoint(0, 0), size()));
+        m_textureBlitter.blit(m_backgroundTexture->textureId(),
+                              targetTransform,
+                              QOpenGLTextureBlitter::OriginTopLeft);
+    }
 
     functions->glEnable(GL_BLEND);
     functions->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -150,6 +149,7 @@ void Window::paintGL()
                 auto sf = view->animationFactor();
                 QRectF targetRect(surfaceGeometry.topLeft() * sf, surfaceGeometry.size() * sf);
                 QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(targetRect, QRect(QPoint(), size()));
+                targetTransform.rotate(90.0f, 0.0f, 0.0f, 1.0f);
                 m_textureBlitter.blit(texture->textureId(), targetTransform, surfaceOrigin);
             }
         }
