@@ -48,42 +48,67 @@
 **
 ****************************************************************************/
 
-#ifndef WINDOW_H
-#define WINDOW_H
+#ifndef COMPOSITORWINDOW_H
+#define COMPOSITORWINDOW_H
 
 #include <QOpenGLWindow>
-#include <QOpenGLTexture>
+#include <QPointer>
 #include <QOpenGLTextureBlitter>
-#include <QWaylandView>
 
 QT_BEGIN_NAMESPACE
 
 class Compositor;
 class View;
+class QOpenGLTexture;
 
 class Window : public QOpenGLWindow
 {
 public:
     Window();
+
     void setCompositor(Compositor *comp);
 
 protected:
     void initializeGL() override;
     void paintGL() override;
+
     void mousePressEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
+    void mouseMoveEvent(QMouseEvent *e) override;
+
     void keyPressEvent(QKeyEvent *e) override;
     void keyReleaseEvent(QKeyEvent *e) override;
-    void sendMouseEvent(QMouseEvent *e, View *target);
+
+private slots:
+    void startMove();
+    void startResize(int edge, bool anchored);
+    void startDrag(View *dragIcon);
 
 private:
+    enum GrabState { NoGrab, MoveGrab, ResizeGrab, DragGrab };
+
+    View *viewAt(const QPointF &point);
+    bool mouseGrab() const { return m_grabState != NoGrab ;}
+    void drawBackground();
+    void sendMouseEvent(QMouseEvent *e, View *target);
+    static QPointF getAnchoredPosition(const QPointF &anchorPosition, int resizeEdge, const QSize &windowSize);
+    static QPointF getAnchorPosition(const QPointF &position, int resizeEdge, const QSize &windowSize);
+
     QOpenGLTextureBlitter m_textureBlitter;
-    Compositor *m_compositor;
     QSize m_backgroundImageSize;
     QOpenGLTexture *m_backgroundTexture;
-    View *m_mouseview;
+    Compositor *m_compositor;
+    QPointer<View> m_mouseView;
+    GrabState m_grabState;
+    QSize m_initialSize;
+    int m_resizeEdge;
+    bool m_resizeAnchored;
+    QPointF m_resizeAnchorPosition;
+    QPointF m_mouseOffset;
+    QPointF m_initialMousePos;
+    View *m_dragIconView;
 };
 
 QT_END_NAMESPACE
 
-#endif //WINDOW_H
+#endif // COMPOSITORWINDOW_H
