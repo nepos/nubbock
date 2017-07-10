@@ -66,10 +66,9 @@ class QOpenGLTexture;
 class Window : public QOpenGLWindow
 {
 public:
-    Window();
+    Window(QWaylandOutput::Transform transform);
 
     void setCompositor(Compositor *comp);
-    void setTransform(QWaylandOutput::Transform transform);
 
 protected:
     void initializeGL() override;
@@ -83,20 +82,11 @@ protected:
     void keyReleaseEvent(QKeyEvent *e) override;
     void timerEvent(QTimerEvent *event) override;
 
-private slots:
-    void startMove();
-    void startResize(int edge, bool anchored);
-    void startDrag(View *dragIcon);
-
 private:
-    enum GrabState { NoGrab, MoveGrab, ResizeGrab, DragGrab };
+    void setTransform(QWaylandOutput::Transform transform);
 
     View *viewAt(const QPointF &point);
-    bool mouseGrab() const { return m_grabState != NoGrab ;}
-    void drawBackground();
     void sendMouseEvent(QMouseEvent *e, QPointF p, View *target);
-    static QPointF getAnchoredPosition(const QPointF &anchorPosition, int resizeEdge, const QSize &windowSize);
-    static QPointF getAnchorPosition(const QPointF &position, int resizeEdge, const QSize &windowSize);
 
     QPointF transformMouseEvent(const QPointF p);
 
@@ -105,14 +95,9 @@ private:
     QOpenGLTexture *m_backgroundTexture;
     Compositor *m_compositor;
     QPointer<View> m_mouseView;
-    GrabState m_grabState;
     QSize m_initialSize;
-    int m_resizeEdge;
-    bool m_resizeAnchored;
-    QPointF m_resizeAnchorPosition;
     QPointF m_mouseOffset;
     QPointF m_initialMousePos;
-    View *m_dragIconView;
     QWaylandOutput::Transform transform, transformPending;
 
     QOpenGLTextureBlitter blackBlitter;
@@ -120,7 +105,6 @@ private:
     QBasicTimer transformAnimationTimer;
     qreal transformAnimationOpacity;
     bool transformAnimationUp;
-    void transformAnimationTimerCallback(QTimer *);
 };
 
 QT_END_NAMESPACE

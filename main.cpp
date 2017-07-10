@@ -57,12 +57,11 @@ int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
 
-    Window window;
+    Window window(QWaylandOutput::Transform90);
     Compositor compositor(&window);
     window.setCompositor(&compositor);
     compositor.create();
     window.resize(800, 1280);
-    window.setTransform(QWaylandOutput::Transform90);
     window.show();
 
     return app.exec();
