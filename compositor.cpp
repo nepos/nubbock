@@ -210,7 +210,7 @@ static int x = 0;
 void Compositor::create()
 {
     QWaylandOutput *output = new QWaylandOutput(this, m_window);
-    QWaylandOutputMode mode(QSize(800, 1280), 60000);
+    QWaylandOutputMode mode(QSize(1280, 800), 60000);
     output->addMode(mode, true);
     QWaylandCompositor::create();
     output->setCurrentMode(mode);
@@ -221,16 +221,6 @@ void Compositor::create()
     qInfo() << "XXX MANUF " << defaultOutput()->manufacturer() << "MODEL" << defaultOutput()->model();
 
     output->setTransform(QWaylandOutput::Transform270);
-
-    QTimer *timer = new QTimer(this);
-    connect(timer, &QTimer::timeout, this, [this]() {
-        qInfo() << "XXX TRANSFORM" << x;
-        defaultOutput()->setTransform((QWaylandOutput::Transform) x);
-        x++;
-        x %= 8;
-    });
-
-    timer->start(1000);
 
 #if 0
     QString accelerometerPath =  QString::fromLocal8Bit(qgetenv("NUBBOCK_ACCELEROMETER_DEV"));

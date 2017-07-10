@@ -55,6 +55,8 @@
 #include <QOpenGLTexture>
 #include <QOpenGLFunctions>
 #include <QMatrix4x4>
+#include <QTimer>
+#include <QDebug>
 
 #include "compositor.h"
 #include <QtWaylandCompositor/qwaylandseat.h>
@@ -65,6 +67,15 @@ Window::Window()
     , m_grabState(NoGrab)
     , m_dragIconView(0)
 {
+    static int x = 0;
+    QTimer *timer = new QTimer(this);
+    connect(timer, &QTimer::timeout, this, [this]() {
+        qInfo() << "XXX TRANSFORM" << x;
+        setTransform((QWaylandOutput::Transform) x & 1 ? QWaylandOutput::Transform90 : QWaylandOutput::Transform270);
+        x++;
+    });
+
+    timer->start(5000);
 }
 
 void Window::setCompositor(Compositor *comp) {
@@ -85,7 +96,13 @@ void Window::initializeGL()
         m_backgroundImageSize = backgroundImage.size();
     }
 
+    QImage black(size(), QImage::Format_Mono);
+    black.setColor(0, qRgb(0, 0, 0));
+    black.fill(0);
+    blackTexture = new QOpenGLTexture(black, QOpenGLTexture::DontGenerateMipMaps);
+
     m_textureBlitter.create();
+    blackBlitter.create();
 }
 
 QPointF Window::getAnchorPosition(const QPointF &position, int resizeEdge, const QSize &windowSize)
@@ -115,13 +132,40 @@ void Window::paintGL()
 
     m_textureBlitter.bind();
 
-    if (m_backgroundTexture) {
-        QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(QRect(QPoint(0, 0), m_backgroundImageSize),
-                                                                            QRect(QPoint(0, 0), size()));
+    QSize sz = size();
+    sz.transpose();
+
+    float angle;
+
+    switch (transform) {
+    case QWaylandOutput::TransformNormal:
+    case QWaylandOutput::TransformFlipped:
+        angle = 0.0f;
+        break;
+    case QWaylandOutput::Transform90:
+    case QWaylandOutput::TransformFlipped90:
+        angle = 90.0f;
+        break;
+    case QWaylandOutput::Transform180:
+    case QWaylandOutput::TransformFlipped180:
+        angle = 180.0f;
+        break;
+    case QWaylandOutput::Transform270:
+    case QWaylandOutput::TransformFlipped270:
+        angle = 270.0f;
+        break;
+    default:
+        qWarning() << "Unsupported transform" << transform;
+    }
+
+    QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(QRect(QPoint(0, 0), m_backgroundImageSize),
+                                                                        QRect(QPoint(0, 0), sz));
+    targetTransform.rotate(angle, 0.0f, 0.0f, 1.0f);
+
+    if (m_backgroundTexture)
         m_textureBlitter.blit(m_backgroundTexture->textureId(),
                               targetTransform,
                               QOpenGLTextureBlitter::OriginTopLeft);
-    }
 
     functions->glEnable(GL_BLEND);
     functions->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -148,15 +192,26 @@ void Window::paintGL()
                 auto surfaceOrigin = view->textureOrigin();
                 auto sf = view->animationFactor();
                 QRectF targetRect(surfaceGeometry.topLeft() * sf, surfaceGeometry.size() * sf);
-                QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(targetRect, QRect(QPoint(), size()));
-                targetTransform.rotate(90.0f, 0.0f, 0.0f, 1.0f);
+                QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(targetRect, QRect(QPoint(), sz));
+                targetTransform.rotate(angle, 0.0f, 0.0f, 1.0f);
                 m_textureBlitter.blit(texture->textureId(), targetTransform, surfaceOrigin);
             }
         }
     }
-    functions->glDisable(GL_BLEND);
 
     m_textureBlitter.release();
+
+    if (transformAnimationOpacity > 0.0f) {
+        blackBlitter.bind();
+        blackBlitter.setOpacity(transformAnimationOpacity);
+        blackBlitter.blit(blackTexture->textureId(),
+                          targetTransform,
+                          QOpenGLTextureBlitter::OriginTopLeft);
+        blackBlitter.release();
+    }
+
+    functions->glDisable(GL_BLEND);
+
     m_compositor->endRender();
 }
 
@@ -194,12 +249,82 @@ void Window::startDrag(View *dragIcon)
     m_compositor->raise(dragIcon);
 }
 
+void Window::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() != transformAnimationTimer.timerId())
+        return;
+
+    if (transformAnimationUp) {
+        transformAnimationOpacity += 0.05;
+        if (transformAnimationOpacity >= 1.0f) {
+            transformAnimationOpacity = 1.0f;
+            transformAnimationUp = false;
+            transform = transformPending;
+        }
+    } else {
+        transformAnimationOpacity -= 0.05;
+        if (transformAnimationOpacity <= 0.0f) {
+            transformAnimationOpacity = 0.0f;
+            transformAnimationTimer.stop();
+        }
+    }
+
+    update();
+}
+
+void Window::setTransform(QWaylandOutput::Transform _transform)
+{
+    transformPending = _transform;
+
+    transformAnimationOpacity = 0.0f;
+    transformAnimationUp = true;
+    transformAnimationTimer.start(20, this);
+}
+
+QPointF Window::transformMouseEvent(const QPointF p)
+{
+    qreal x = p.x();
+    qreal y = p.y();
+
+    switch (transform) {
+    case QWaylandOutput::TransformNormal:
+        x = p.x();
+        y = p.y();
+        break;
+    case QWaylandOutput::TransformFlipped:
+        y = size().height() - p.y();
+        break;
+    case QWaylandOutput::Transform90:
+        x = size().height() - p.y();
+        y = p.x();
+        break;
+    case QWaylandOutput::Transform180:
+        x = p.x();
+        y = size().height() - p.y();
+        break;
+    case QWaylandOutput::Transform270:
+        x = p.y();
+        y = size().width() - p.x();
+        break;
+    case QWaylandOutput::TransformFlipped90:
+    case QWaylandOutput::TransformFlipped180:
+    case QWaylandOutput::TransformFlipped270:
+        /* TODO */
+        break;
+    }
+
+    return QPointF(x, y);
+}
+
 void Window::mousePressEvent(QMouseEvent *e)
 {
+    QPointF p = transformMouseEvent(e->localPos());
+
     if (mouseGrab())
         return;
+
     if (m_mouseView.isNull()) {
-        m_mouseView = viewAt(e->localPos());
+        m_mouseView = viewAt(p);
         if (!m_mouseView) {
             m_compositor->closePopups();
             return;
@@ -208,22 +333,25 @@ void Window::mousePressEvent(QMouseEvent *e)
             m_grabState = MoveGrab; //start move
         else
             m_compositor->raise(m_mouseView);
-        m_initialMousePos = e->localPos();
-        m_mouseOffset = e->localPos() - m_mouseView->position();
+        m_initialMousePos = p;
+        m_mouseOffset = p - m_mouseView->position();
 
-        QMouseEvent moveEvent(QEvent::MouseMove, e->localPos(), e->globalPos(), Qt::NoButton, Qt::NoButton, e->modifiers());
-        sendMouseEvent(&moveEvent, m_mouseView);
+        QMouseEvent moveEvent(QEvent::MouseMove, p, e->globalPos(), Qt::NoButton, Qt::NoButton, e->modifiers());
+        sendMouseEvent(&moveEvent, p, m_mouseView);
     }
-    sendMouseEvent(e, m_mouseView);
+
+    sendMouseEvent(e, p, m_mouseView);
 }
 
 void Window::mouseReleaseEvent(QMouseEvent *e)
 {
+    QPointF p = transformMouseEvent(e->localPos());
+
     if (!mouseGrab())
-        sendMouseEvent(e, m_mouseView);
+        sendMouseEvent(e, p, m_mouseView);
     if (e->buttons() == Qt::NoButton) {
         if (m_grabState == DragGrab) {
-            View *view = viewAt(e->localPos());
+            View *view = viewAt(p);
             m_compositor->handleDrag(view, e);
         }
         m_mouseView = 0;
@@ -233,29 +361,31 @@ void Window::mouseReleaseEvent(QMouseEvent *e)
 
 void Window::mouseMoveEvent(QMouseEvent *e)
 {
+    QPointF p = transformMouseEvent(e->localPos());
+
     switch (m_grabState) {
     case NoGrab: {
-        View *view = m_mouseView ? m_mouseView.data() : viewAt(e->localPos());
-        sendMouseEvent(e, view);
+        View *view = m_mouseView ? m_mouseView.data() : viewAt(p);
+        sendMouseEvent(e, p, view);
         if (!view)
             setCursor(Qt::ArrowCursor);
     }
         break;
     case MoveGrab: {
-        m_mouseView->setPosition(e->localPos() - m_mouseOffset);
+        m_mouseView->setPosition(p - m_mouseOffset);
         update();
     }
         break;
     case ResizeGrab: {
-        QPoint delta = (e->localPos() - m_initialMousePos).toPoint();
+        QPoint delta = (p - m_initialMousePos).toPoint();
         m_compositor->handleResize(m_mouseView, m_initialSize, delta, m_resizeEdge);
     }
         break;
     case DragGrab: {
-        View *view = viewAt(e->localPos());
+        View *view = viewAt(p);
         m_compositor->handleDrag(view, e);
         if (m_dragIconView) {
-            m_dragIconView->setPosition(e->localPos() + m_dragIconView->offset());
+            m_dragIconView->setPosition(p + m_dragIconView->offset());
             update();
         }
     }
@@ -263,12 +393,14 @@ void Window::mouseMoveEvent(QMouseEvent *e)
     }
 }
 
-void Window::sendMouseEvent(QMouseEvent *e, View *target)
+void Window::sendMouseEvent(QMouseEvent *e, QPointF p, View *target)
 {
+    // At this point, the mouse event is already transformed
+
     QPointF mappedPos = e->localPos();
     if (target)
         mappedPos -= target->position();
-    QMouseEvent viewEvent(e->type(), mappedPos, e->localPos(), e->button(), e->buttons(), e->modifiers());
+    QMouseEvent viewEvent(e->type(), mappedPos, p, e->button(), e->buttons(), e->modifiers());
     m_compositor->handleMouseEvent(target, &viewEvent);
 }
 

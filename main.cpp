@@ -49,6 +49,7 @@
 ****************************************************************************/
 
 #include <QGuiApplication>
+
 #include "window.h"
 #include "compositor.h"
 
@@ -60,7 +61,8 @@ int main(int argc, char *argv[])
     Compositor compositor(&window);
     window.setCompositor(&compositor);
     compositor.create();
-    window.resize(222, 444);
+    window.resize(800, 1280);
+    window.setTransform(QWaylandOutput::Transform90);
     window.show();
 
     return app.exec();

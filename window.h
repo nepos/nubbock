@@ -54,6 +54,8 @@
 #include <QOpenGLWindow>
 #include <QPointer>
 #include <QOpenGLTextureBlitter>
+#include <QWaylandOutput>
+#include <QBasicTimer>
 
 QT_BEGIN_NAMESPACE
 
@@ -67,6 +69,7 @@ public:
     Window();
 
     void setCompositor(Compositor *comp);
+    void setTransform(QWaylandOutput::Transform transform);
 
 protected:
     void initializeGL() override;
@@ -78,6 +81,7 @@ protected:
 
     void keyPressEvent(QKeyEvent *e) override;
     void keyReleaseEvent(QKeyEvent *e) override;
+    void timerEvent(QTimerEvent *event) override;
 
 private slots:
     void startMove();
@@ -90,9 +94,11 @@ private:
     View *viewAt(const QPointF &point);
     bool mouseGrab() const { return m_grabState != NoGrab ;}
     void drawBackground();
-    void sendMouseEvent(QMouseEvent *e, View *target);
+    void sendMouseEvent(QMouseEvent *e, QPointF p, View *target);
     static QPointF getAnchoredPosition(const QPointF &anchorPosition, int resizeEdge, const QSize &windowSize);
     static QPointF getAnchorPosition(const QPointF &position, int resizeEdge, const QSize &windowSize);
+
+    QPointF transformMouseEvent(const QPointF p);
 
     QOpenGLTextureBlitter m_textureBlitter;
     QSize m_backgroundImageSize;
@@ -107,6 +113,14 @@ private:
     QPointF m_mouseOffset;
     QPointF m_initialMousePos;
     View *m_dragIconView;
+    QWaylandOutput::Transform transform, transformPending;
+
+    QOpenGLTextureBlitter blackBlitter;
+    QOpenGLTexture *blackTexture;
+    QBasicTimer transformAnimationTimer;
+    qreal transformAnimationOpacity;
+    bool transformAnimationUp;
+    void transformAnimationTimerCallback(QTimer *);
 };
 
 QT_END_NAMESPACE
