@@ -227,13 +227,12 @@ void Window::timerEvent(QTimerEvent *event)
 void Window::setTransform(QWaylandOutput::Transform _transform)
 {
     transformPending = _transform;
-
     transformAnimationOpacity = 0.0f;
     transformAnimationUp = true;
     transformAnimationTimer.start(20, this);
 }
 
-QPointF Window::transformMouseEvent(const QPointF p)
+QPointF Window::transformPosition(const QPointF p)
 {
     qreal x = p.x();
     qreal y = p.y();
@@ -270,7 +269,7 @@ QPointF Window::transformMouseEvent(const QPointF p)
 
 void Window::mousePressEvent(QMouseEvent *e)
 {
-    QPointF p = transformMouseEvent(e->localPos());
+    QPointF p = transformPosition(e->localPos());
 
     if (m_mouseView.isNull()) {
         m_mouseView = viewAt(p);
@@ -297,9 +296,44 @@ void Window::mouseReleaseEvent(QMouseEvent *e)
 
 void Window::mouseMoveEvent(QMouseEvent *e)
 {
-    QPointF p = transformMouseEvent(e->localPos());
+    QPointF p = transformPosition(e->localPos());
     View *view = m_mouseView ? m_mouseView.data() : viewAt(p);
     sendMouseEvent(e, p, view);
+}
+
+void Window::touchEvent(QTouchEvent *e)
+{
+    QWaylandSeat *input = m_compositor->defaultSeat();
+
+    const QList<QTouchEvent::TouchPoint> points = e->touchPoints();
+    if (points.isEmpty())
+        return;
+
+    QPointF p = transformPosition(points.at(0).normalizedPos());
+    View *view = viewAt(p);
+
+    if (!view)
+        return;
+
+    QWaylandSurface *surface = view->surface();
+
+    if (e->type() == QEvent::TouchCancel) {
+        input->sendTouchCancelEvent(surface->client());
+        return;
+    }
+
+//    QtWayland::TouchExtensionGlobal *ext = QtWayland::TouchExtensionGlobal::findIn(m_compositor);
+//    if (ext && ext->postTouchEvent(event, surface))
+//        return;
+
+    for (int i = 0; i < points.count(); ++i) {
+        const QTouchEvent::TouchPoint &tp(points.at(i));
+        const QPointF pos = transformPosition(tp.pos());
+        // Convert the local pos in the compositor window to surface-relative.
+        input->sendTouchPointEvent(surface, tp.id(), pos, tp.state());
+    }
+
+    input->sendTouchFrameEvent(surface->client());
 }
 
 void Window::sendMouseEvent(QMouseEvent *e, QPointF p, View *target)

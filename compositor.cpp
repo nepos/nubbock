@@ -451,6 +451,14 @@ void Compositor::handleMouseEvent(QWaylandView *target, QMouseEvent *me)
     }
 }
 
+void Compositor::handleTouchEvent(QWaylandView *target, QTouchEvent *e)
+{
+    QWaylandSurface *surface = target ? target->surface() : nullptr;
+    QWaylandSeat *input = defaultSeat();
+
+    input->sendFullTouchEvent(surface, e);
+}
+
 void Compositor::handleResize(View *target, const QSize &initialSize, const QPoint &delta, int edge)
 {
     QWaylandWlShellSurface *wlShellSurface = target->m_wlShellSurface;

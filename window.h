@@ -80,6 +80,9 @@ protected:
 
     void keyPressEvent(QKeyEvent *e) override;
     void keyReleaseEvent(QKeyEvent *e) override;
+
+    void touchEvent(QTouchEvent *e) override;
+
     void timerEvent(QTimerEvent *event) override;
 
 private:
@@ -88,7 +91,7 @@ private:
     View *viewAt(const QPointF &point);
     void sendMouseEvent(QMouseEvent *e, QPointF p, View *target);
 
-    QPointF transformMouseEvent(const QPointF p);
+    QPointF transformPosition(const QPointF p);
 
     QOpenGLTextureBlitter m_textureBlitter;
     QSize m_backgroundImageSize;

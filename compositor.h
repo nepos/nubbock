@@ -123,11 +123,14 @@ public:
     void raise(View *view);
 
     void handleMouseEvent(QWaylandView *target, QMouseEvent *me);
+    void handleTouchEvent(QWaylandView *target, QTouchEvent *e);
+
     void handleResize(View *target, const QSize &initialSize, const QPoint &delta, int edge);
     void handleDrag(View *target, QMouseEvent *me);
 
     QWaylandClient *popupClient() const;
     void closePopups();
+
 protected:
     void adjustCursorSurface(QWaylandSurface *surface, int hotspotX, int hotspotY);
 
