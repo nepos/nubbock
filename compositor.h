@@ -125,7 +125,6 @@ public:
     void handleTouchEvent(QWaylandView *target, QTouchEvent *e);
 
     void handleResize(View *target, const QSize &initialSize, const QPoint &delta, int edge);
-    void handleDrag(View *target, QMouseEvent *me);
 
     QWaylandClient *popupClient() const;
     void closePopups();
@@ -136,7 +135,6 @@ protected:
 signals:
     void startMove();
     void startResize(int edge, bool anchored);
-    void dragStarted(View *dragIcon);
     void frameOffset(const QPoint &offset);
 
 public slots:
@@ -148,9 +146,6 @@ private slots:
     void onStartMove();
     void onWlStartResize(QWaylandSeat *seat, QWaylandWlShellSurface::ResizeEdge edges);
     void onXdgStartResize(QWaylandSeat *seat, QWaylandXdgSurfaceV5::ResizeEdge edges);
-
-    void startDrag();
-
 
     void onSurfaceCreated(QWaylandSurface *surface);
     void onWlShellSurfaceCreated(QWaylandWlShellSurface *wlShellSurface);
@@ -175,7 +170,6 @@ private:
     int m_cursorHotspotX;
     int m_cursorHotspotY;
 };
-
 
 QT_END_NAMESPACE
 

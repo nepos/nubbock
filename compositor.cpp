@@ -179,7 +179,6 @@ void Compositor::create()
 
     connect(this, &QWaylandCompositor::surfaceCreated, this, &Compositor::onSurfaceCreated);
     connect(defaultSeat(), &QWaylandSeat::cursorSurfaceRequest, this, &Compositor::adjustCursorSurface);
-    connect(defaultSeat()->drag(), &QWaylandDrag::dragStarted, this, &Compositor::startDrag);
 
     connect(this, &QWaylandCompositor::subsurfaceChanged, this, &Compositor::onSubsurfaceChanged);
 }
@@ -441,32 +440,6 @@ void Compositor::handleResize(View *target, const QSize &initialSize, const QPoi
         QWaylandXdgSurfaceV5::ResizeEdge edges = static_cast<QWaylandXdgSurfaceV5::ResizeEdge>(edge);
         QSize newSize = xdgSurface->sizeForResize(initialSize, delta, edges);
         xdgSurface->sendResizing(newSize);
-    }
-}
-
-void Compositor::startDrag()
-{
-    QWaylandDrag *currentDrag = defaultSeat()->drag();
-    Q_ASSERT(currentDrag);
-    View *iconView = findView(currentDrag->icon());
-    iconView->setPosition(m_window->mapFromGlobal(QCursor::pos()));
-
-    emit dragStarted(iconView);
-}
-
-void Compositor::handleDrag(View *target, QMouseEvent *me)
-{
-    QPointF pos = me->localPos();
-    QWaylandSurface *surface = 0;
-    if (target) {
-        pos -= target->position();
-        surface = target->surface();
-    }
-    QWaylandDrag *currentDrag = defaultSeat()->drag();
-    currentDrag->dragMove(surface, pos);
-    if (me->buttons() == Qt::NoButton) {
-        m_views.removeOne(findView(currentDrag->icon()));
-        currentDrag->drop();
     }
 }
 
