@@ -49,7 +49,6 @@
 ****************************************************************************/
 
 #include "compositor.h"
-#include "accelerometer.h"
 
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -176,38 +175,7 @@ void Compositor::create()
 
     setDefaultOutput(output);
 
-    qInfo() << "XXX MANUF " << output->manufacturer() << "MODEL" << output->model();
-    qInfo() << "XXX MANUF " << defaultOutput()->manufacturer() << "MODEL" << defaultOutput()->model();
-
     output->setTransform(QWaylandOutput::Transform270);
-
-#if 0
-    QString accelerometerPath =  QString::fromLocal8Bit(qgetenv("NUBBOCK_ACCELEROMETER_DEV"));
-
-    if (!accelerometerPath.isEmpty()) {
-        qInfo() << "USING ACCEL" << accelerometerPath;
-        accelerometer = new Accelerometer(accelerometerPath, this);
-
-        QObject::connect(accelerometer, &Accelerometer::orientationChanged, this, [this, output](Accelerometer::Orientation o) {
-            qInfo() << "ORIENTATION CHANGED!";
-            switch (o) {
-            case Accelerometer::Standing:
-            default:
-                defaultOutput()->setTransform(QWaylandOutput::Transform270);
-                break;
-            case Accelerometer::Laying:
-                defaultOutput()->setTransform(QWaylandOutput::Transform90);
-                break;
-            }
-
-            defaultOutput()->update();
-        });
-
-        accelerometer->emitCurrent();
-    }
-#endif
-
-
 
     connect(this, &QWaylandCompositor::surfaceCreated, this, &Compositor::onSurfaceCreated);
     connect(defaultSeat(), &QWaylandSeat::cursorSurfaceRequest, this, &Compositor::adjustCursorSurface);

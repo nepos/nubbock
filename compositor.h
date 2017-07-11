@@ -66,7 +66,6 @@ class QWaylandWlShellSurface;
 class QWaylandXdgShellV5;
 class QOpenGLTexture;
 class Compositor;
-class Accelerometer;
 
 class View : public QWaylandView
 {
@@ -175,7 +174,6 @@ private:
     QWaylandView m_cursorView;
     int m_cursorHotspotX;
     int m_cursorHotspotY;
-    Accelerometer *accelerometer;
 };
 
 

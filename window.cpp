@@ -49,6 +49,7 @@
 ****************************************************************************/
 
 #include "window.h"
+#include "accelerometer.h"
 
 #include <QMouseEvent>
 #include <QOpenGLWindow>
@@ -66,6 +67,7 @@ Window::Window(QWaylandOutput::Transform transform)
     , m_compositor(0)
     , transform(transform)
 {
+#if 0
     static int x = 0;
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this]() {
@@ -75,6 +77,28 @@ Window::Window(QWaylandOutput::Transform transform)
     });
 
     timer->start(5000);
+#endif
+
+    QString accelerometerPath =  QString::fromLocal8Bit(qgetenv("NUBBOCK_ACCELEROMETER_DEV"));
+
+    if (!accelerometerPath.isEmpty()) {
+        accelerometer = new Accelerometer(accelerometerPath, this);
+
+        QObject::connect(accelerometer, &Accelerometer::orientationChanged, this, [this](Accelerometer::Orientation o) {
+            qInfo() << "ORIENTATION CHANGED!";
+            switch (o) {
+            case Accelerometer::Standing:
+            default:
+                setTransform(QWaylandOutput::Transform90);
+                break;
+            case Accelerometer::Laying:
+                setTransform(QWaylandOutput::Transform270);
+                break;
+            }
+        });
+
+        accelerometer->emitCurrent();
+    }
 }
 
 void Window::setCompositor(Compositor *comp) {
@@ -212,6 +236,7 @@ void Window::timerEvent(QTimerEvent *event)
             transformAnimationOpacity = 1.0f;
             transformAnimationUp = false;
             transform = transformPending;
+            m_compositor->defaultOutput()->setTransform(transform);
         }
     } else {
         transformAnimationOpacity -= 0.05;
@@ -226,6 +251,7 @@ void Window::timerEvent(QTimerEvent *event)
 
 void Window::setTransform(QWaylandOutput::Transform _transform)
 {
+    transformAnimationTimer.stop();
     transformPending = _transform;
     transformAnimationOpacity = 0.0f;
     transformAnimationUp = true;
@@ -243,6 +269,7 @@ QPointF Window::transformPosition(const QPointF p)
         y = p.y();
         break;
     case QWaylandOutput::TransformFlipped:
+        x = p.x();
         y = size().height() - p.y();
         break;
     case QWaylandOutput::Transform90:
@@ -277,6 +304,7 @@ void Window::mousePressEvent(QMouseEvent *e)
             m_compositor->closePopups();
             return;
         }
+
         m_compositor->raise(m_mouseView);
         m_initialMousePos = p;
         m_mouseOffset = p - m_mouseView->position();

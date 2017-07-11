@@ -62,6 +62,7 @@ QT_BEGIN_NAMESPACE
 class Compositor;
 class View;
 class QOpenGLTexture;
+class Accelerometer;
 
 class Window : public QOpenGLWindow
 {
@@ -108,6 +109,7 @@ private:
     QBasicTimer transformAnimationTimer;
     qreal transformAnimationOpacity;
     bool transformAnimationUp;
+    Accelerometer *accelerometer;
 };
 
 QT_END_NAMESPACE
