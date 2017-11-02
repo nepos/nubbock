@@ -85,7 +85,7 @@ Window::Window(QWaylandOutput::Transform transform)
         accelerometer = new Accelerometer(accelerometerPath, this);
 
         QObject::connect(accelerometer, &Accelerometer::orientationChanged, this, [this](Accelerometer::Orientation o) {
-            qInfo() << "ORIENTATION CHANGED!";
+            qInfo() << "Orientation changed to" << o;
             switch (o) {
             case Accelerometer::Standing:
             default:

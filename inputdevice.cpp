@@ -63,7 +63,6 @@ void InputDevice::update(int type, int code, int value)
 void InputDevice::emitCurrent()
 {
     unsigned long bit[EV_MAX][NBITS(KEY_MAX)] = { 0 };
-    unsigned long state[KEY_CNT] = { 0 };
     unsigned int type, code;
     int ret;
 
@@ -79,15 +78,16 @@ void InputDevice::emitCurrent()
     }
 
     for (type = 0; type < EV_MAX; type++) {
-        if (test_bit(type, bit[0]) && type != EV_REP) {
-            if (type == EV_KEY) {
-                ioctl(fd, EVIOCGBIT(type, KEY_MAX), bit[EV_KEY]);
+        if (test_bit(type, bit[0])) {
+            switch (type) {
+            case EV_ABS:
+                ioctl(fd, EVIOCGBIT(type, ABS_MAX), bit[type]);
 
-                for (code = 0; code < KEY_MAX; code++) {
+                for (code = 0; code < ABS_MAX; code++) {
                     if (test_bit(code, bit[type])) {
-                        int value = test_bit(code, state);
-
-                        emit inputEvent(type, code, value);
+                        struct input_absinfo abs;
+                        ioctl(fd, EVIOCGABS(code), &abs);
+                        update(type, code, abs.value);
                     }
                 }
             }
