@@ -251,6 +251,9 @@ void Window::timerEvent(QTimerEvent *event)
 
 void Window::setTransform(QWaylandOutput::Transform _transform)
 {
+    if (transform == _transform)
+        return;
+
     transformAnimationTimer.stop();
     transformPending = _transform;
     transformAnimationOpacity = 0.0f;
