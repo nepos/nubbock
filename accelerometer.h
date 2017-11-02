@@ -13,9 +13,9 @@ class Accelerometer : public InputDevice
 public:
 
     enum Orientation {
-        Standing		= 0,
-        Laying  		= 1,
-        Undefined		= 2	//Sentinell
+        Undefined		= 0,
+        Standing		= 1,
+        Laying  		= 2,
     };
 
     explicit Accelerometer(const QString &path, QObject *parent = 0);
@@ -28,11 +28,7 @@ signals:
     void orientationChanged(Orientation);
 
 private:
-    void evaluate();
-
     Orientation currentOrientation;
-    qreal currentAxes[3];
-    qreal oldAxes[3];
 };
 
 #endif // ACCELEROMETER_H
