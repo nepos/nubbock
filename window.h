@@ -56,13 +56,14 @@
 #include <QOpenGLTextureBlitter>
 #include <QWaylandOutput>
 #include <QBasicTimer>
+#include <QLocalServer>
+#include <QLocalSocket>
 
 QT_BEGIN_NAMESPACE
 
 class Compositor;
 class View;
 class QOpenGLTexture;
-class Accelerometer;
 
 class Window : public QOpenGLWindow
 {
@@ -109,7 +110,7 @@ private:
     QBasicTimer transformAnimationTimer;
     qreal transformAnimationOpacity;
     bool transformAnimationUp;
-    Accelerometer *accelerometer;
+    QLocalServer *socketServer;
 };
 
 QT_END_NAMESPACE

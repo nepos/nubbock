@@ -49,7 +49,6 @@
 ****************************************************************************/
 
 #include "window.h"
-#include "accelerometer.h"
 
 #include <QMouseEvent>
 #include <QOpenGLWindow>
@@ -58,6 +57,8 @@
 #include <QMatrix4x4>
 #include <QTimer>
 #include <QDebug>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include "compositor.h"
 #include <QtWaylandCompositor/qwaylandseat.h>
@@ -79,26 +80,41 @@ Window::Window(QWaylandOutput::Transform transform)
     timer->start(5000);
 #endif
 
-    QString accelerometerPath =  QString::fromLocal8Bit(qgetenv("NUBBOCK_ACCELEROMETER_DEV"));
+    socketServer = new QLocalServer(this);
 
-    if (!accelerometerPath.isEmpty()) {
-        accelerometer = new Accelerometer(accelerometerPath, this);
+    QObject::connect(socketServer, &QLocalServer::newConnection, this, [this]() {
+        QLocalSocket *socketClient = socketServer->nextPendingConnection();
 
-        QObject::connect(accelerometer, &Accelerometer::orientationChanged, this, [this](Accelerometer::Orientation o) {
-            qInfo() << "Orientation changed to" << o;
-            switch (o) {
-            case Accelerometer::Standing:
-            default:
+        if (!socketClient)
+            return;
+
+        QObject::connect(socketClient, &QLocalSocket::readyRead, [this, socketClient]() {
+            QByteArray message = socketClient->readAll();
+            QJsonDocument doc = QJsonDocument::fromJson(message);
+
+            if (!doc.isObject())
+                return;
+
+            QJsonObject obj = doc.object();
+            const QString transform = obj["transform"].toString();
+            if (transform.isEmpty())
+                return;
+
+            qInfo() << "Setting transform:" << transform;
+
+            if (transform == "90")
                 setTransform(QWaylandOutput::Transform90);
-                break;
-            case Accelerometer::Laying:
-                setTransform(QWaylandOutput::Transform270);
-                break;
-            }
-        });
 
-        accelerometer->emitCurrent();
-    }
+            if (transform == "270")
+                setTransform(QWaylandOutput::Transform270);
+        });
+    });
+
+    socketServer->setMaxPendingConnections(1);
+    QString socketName = "/run/nubbock/socket";
+    QFile::remove(socketName);
+    socketServer->listen(socketName);
+    qInfo() << "Listening on" << socketServer->serverName();
 }
 
 void Window::setCompositor(Compositor *comp) {
