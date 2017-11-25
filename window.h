@@ -58,6 +58,7 @@
 #include <QBasicTimer>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include "socketserver.h"
 
 QT_BEGIN_NAMESPACE
 
@@ -110,7 +111,7 @@ private:
     QBasicTimer transformAnimationTimer;
     qreal transformAnimationOpacity;
     bool transformAnimationUp;
-    QLocalServer *socketServer;
+    SocketServer *socketServer;
 };
 
 QT_END_NAMESPACE

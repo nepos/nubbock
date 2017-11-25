@@ -80,41 +80,23 @@ Window::Window(QWaylandOutput::Transform transform)
     timer->start(5000);
 #endif
 
-    socketServer = new QLocalServer(this);
+    socketServer = new SocketServer("/run/nubbock/socket", this);
 
-    QObject::connect(socketServer, &QLocalServer::newConnection, this, [this]() {
-        QLocalSocket *socketClient = socketServer->nextPendingConnection();
-
-        if (!socketClient)
+    QObject::connect(socketServer, &SocketServer::jsonReceived, [this](const QJsonObject &obj) {
+        const QString transform = obj["transform"].toString();
+        if (transform.isEmpty())
             return;
 
-        QObject::connect(socketClient, &QLocalSocket::readyRead, [this, socketClient]() {
-            QByteArray message = socketClient->readAll();
-            QJsonDocument doc = QJsonDocument::fromJson(message);
+        qInfo() << "Setting transform:" << transform;
 
-            if (!doc.isObject())
-                return;
+        if (transform == "90")
+            setTransform(QWaylandOutput::Transform90);
 
-            QJsonObject obj = doc.object();
-            const QString transform = obj["transform"].toString();
-            if (transform.isEmpty())
-                return;
-
-            qInfo() << "Setting transform:" << transform;
-
-            if (transform == "90")
-                setTransform(QWaylandOutput::Transform90);
-
-            if (transform == "270")
-                setTransform(QWaylandOutput::Transform270);
-        });
+        if (transform == "270")
+            setTransform(QWaylandOutput::Transform270);
     });
 
-    socketServer->setMaxPendingConnections(1);
-    QString socketName = "/run/nubbock/socket";
-    QFile::remove(socketName);
-    socketServer->listen(socketName);
-    qInfo() << "Listening on" << socketServer->serverName();
+    socketServer->start();
 }
 
 void Window::setCompositor(Compositor *comp) {

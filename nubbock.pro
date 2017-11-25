@@ -4,8 +4,10 @@ LIBS += -L ../../lib
 
 HEADERS += \
     compositor.h \
-    window.h
+    window.h \
+    socketserver.h
 
 SOURCES += main.cpp \
     compositor.cpp \
-    window.cpp
+    window.cpp \
+    socketserver.cpp
