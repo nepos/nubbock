@@ -16,14 +16,18 @@ SocketServer::SocketServer(const QString &path, QObject *parent) :
             return;
 
         QObject::connect(socketClient, &QLocalSocket::readyRead, [this, socketClient]() {
-            QByteArray message = socketClient->readAll();
-            QJsonDocument doc = QJsonDocument::fromJson(message);
+            QByteArray buf = socketClient->readAll();
+            QList<QByteArray> messages = buf.split(0);
 
-            if (!doc.isObject())
-                return;
+            foreach (QByteArray message, messages) {
+                QJsonDocument doc = QJsonDocument::fromJson(message);
 
-            QJsonObject obj = doc.object();
-            emit jsonReceived(obj);
+                if (!doc.isObject())
+                    return;
+
+                QJsonObject obj = doc.object();
+                emit jsonReceived(obj);
+            }
         });
     });
 }
