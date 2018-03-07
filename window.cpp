@@ -297,6 +297,8 @@ QPointF Window::transformPosition(const QPointF p)
 
 void Window::mousePressEvent(QMouseEvent *e)
 {
+    qDebug() << __func__ << e;
+
     QPointF p = transformPosition(e->localPos());
 
     if (m_mouseView.isNull()) {
@@ -319,12 +321,16 @@ void Window::mousePressEvent(QMouseEvent *e)
 
 void Window::mouseReleaseEvent(QMouseEvent *e)
 {
+    qDebug() << __func__ << e;
+
     if (e->buttons() == Qt::NoButton)
         m_mouseView = 0;
 }
 
 void Window::mouseMoveEvent(QMouseEvent *e)
 {
+    qDebug() << __func__ << e;
+
     QPointF p = transformPosition(e->localPos());
     View *view = m_mouseView ? m_mouseView.data() : viewAt(p);
     sendMouseEvent(e, p, view);
@@ -332,6 +338,8 @@ void Window::mouseMoveEvent(QMouseEvent *e)
 
 void Window::touchEvent(QTouchEvent *e)
 {
+    qDebug() << __func__ << e;
+
     QWaylandSeat *input = m_compositor->defaultSeat();
 
     const QList<QTouchEvent::TouchPoint> points = e->touchPoints();
@@ -378,10 +386,14 @@ void Window::sendMouseEvent(QMouseEvent *e, QPointF p, View *target)
 
 void Window::keyPressEvent(QKeyEvent *e)
 {
+    qDebug() << __func__ << e;
+
     m_compositor->defaultSeat()->sendKeyPressEvent(e->nativeScanCode());
 }
 
 void Window::keyReleaseEvent(QKeyEvent *e)
 {
+    qDebug() << __func__ << e;
+
     m_compositor->defaultSeat()->sendKeyReleaseEvent(e->nativeScanCode());
 }
