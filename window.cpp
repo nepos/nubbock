@@ -67,6 +67,8 @@ Window::Window(QWaylandOutput::Transform transform)
     : m_backgroundTexture(0)
     , m_compositor(0)
     , transform(transform)
+    , transformAnimationTimer()
+    , suspendAnimationTimer()
 {
 #if 0
     static int x = 0;
@@ -84,16 +86,18 @@ Window::Window(QWaylandOutput::Transform transform)
 
     QObject::connect(socketServer, &SocketServer::jsonReceived, [this](const QJsonObject &obj) {
         const QString transform = obj["transform"].toString();
-        if (transform.isEmpty())
-            return;
+        if (!transform.isEmpty()) {
+            qInfo() << "Setting transform:" << transform;
 
-        qInfo() << "Setting transform:" << transform;
+            if (transform == "90")
+                setTransform(QWaylandOutput::Transform90);
 
-        if (transform == "90")
-            setTransform(QWaylandOutput::Transform90);
+            if (transform == "270")
+                setTransform(QWaylandOutput::Transform270);
+        }
 
-        if (transform == "270")
-            setTransform(QWaylandOutput::Transform270);
+        const bool suspended = obj["suspended"].toBool();
+        setSuspended(suspended);
     });
 
     socketServer->start();
@@ -117,10 +121,13 @@ void Window::initializeGL()
     QImage black(size(), QImage::Format_Mono);
     black.setColor(0, qRgb(0, 0, 0));
     black.fill(0);
-    blackTexture = new QOpenGLTexture(black, QOpenGLTexture::DontGenerateMipMaps);
+
+    transformOverlayTexture = new QOpenGLTexture(black, QOpenGLTexture::DontGenerateMipMaps);
+    suspendOverlayTexture = new QOpenGLTexture(black, QOpenGLTexture::DontGenerateMipMaps);
 
     m_textureBlitter.create();
-    blackBlitter.create();
+    transformOverlayBlitter.create();
+    suspendOverlayBlitter.create();
 }
 
 void Window::paintGL()
@@ -199,12 +206,21 @@ void Window::paintGL()
     m_textureBlitter.release();
 
     if (transformAnimationOpacity > 0.0f) {
-        blackBlitter.bind();
-        blackBlitter.setOpacity(transformAnimationOpacity);
-        blackBlitter.blit(blackTexture->textureId(),
+        transformOverlayBlitter.bind();
+        transformOverlayBlitter.setOpacity(transformAnimationOpacity);
+        transformOverlayBlitter.blit(transformOverlayTexture->textureId(),
                           targetTransform,
                           QOpenGLTextureBlitter::OriginTopLeft);
-        blackBlitter.release();
+        transformOverlayBlitter.release();
+    }
+
+    if (suspendAnimationOpacity > 0.0f) {
+        suspendOverlayBlitter.bind();
+        suspendOverlayBlitter.setOpacity(suspendAnimationOpacity);
+        suspendOverlayBlitter.blit(suspendOverlayTexture->textureId(),
+                          targetTransform,
+                          QOpenGLTextureBlitter::OriginTopLeft);
+        suspendOverlayBlitter.release();
     }
 
     functions->glDisable(GL_BLEND);
@@ -225,23 +241,36 @@ View *Window::viewAt(const QPointF &point)
 
 void Window::timerEvent(QTimerEvent *event)
 {
-    if (event->timerId() != transformAnimationTimer.timerId())
-        return;
+    if (event->timerId() == transformAnimationTimer.timerId()) {
+        if (transformAnimationUp) {
+            transformAnimationOpacity += 0.05;
+            if (transformAnimationOpacity >= 1.0f) {
+                transformAnimationOpacity = 1.0f;
+                transformAnimationUp = false;
+                transform = transformPending;
+                m_compositor->defaultOutput()->setTransform(transform);
+            }
+        } else {
+            transformAnimationOpacity -= 0.05;
+            if (transformAnimationOpacity <= 0.0f) {
+                transformAnimationOpacity = 0.0f;
+                transformAnimationTimer.stop();
+            }
+        }
+    } else if (event->timerId() == suspendAnimationTimer.timerId()) {
+        if (suspendAnimationUp) {
+            suspendAnimationOpacity += 0.05;
+            if (suspendAnimationOpacity >= 1.0f) {
+                suspendAnimationOpacity = 1.0f;
+            }
+        } else {
+            suspendAnimationOpacity -= 0.05;
+            if (suspendAnimationOpacity <= 0.0f) {
+                suspendAnimationOpacity = 0.0f;
+            }
+        }
 
-    if (transformAnimationUp) {
-        transformAnimationOpacity += 0.05;
-        if (transformAnimationOpacity >= 1.0f) {
-            transformAnimationOpacity = 1.0f;
-            transformAnimationUp = false;
-            transform = transformPending;
-            m_compositor->defaultOutput()->setTransform(transform);
-        }
-    } else {
-        transformAnimationOpacity -= 0.05;
-        if (transformAnimationOpacity <= 0.0f) {
-            transformAnimationOpacity = 0.0f;
-            transformAnimationTimer.stop();
-        }
+        suspendAnimationTimer.stop();
     }
 
     update();
@@ -257,6 +286,13 @@ void Window::setTransform(QWaylandOutput::Transform _transform)
     transformAnimationOpacity = 0.0f;
     transformAnimationUp = true;
     transformAnimationTimer.start(20, this);
+}
+
+void Window::setSuspended(bool suspended)
+{
+    suspendAnimationTimer.stop();
+    suspendAnimationUp = suspended;
+    suspendAnimationTimer.start(20, this);
 }
 
 QPointF Window::transformPosition(const QPointF p)

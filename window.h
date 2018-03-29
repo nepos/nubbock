@@ -90,6 +90,7 @@ protected:
 
 private:
     void setTransform(QWaylandOutput::Transform transform);
+    void setSuspended(bool suspended);
 
     View *viewAt(const QPointF &point);
     void sendMouseEvent(QMouseEvent *e, QPointF p, View *target);
@@ -106,11 +107,18 @@ private:
     QPointF m_initialMousePos;
     QWaylandOutput::Transform transform, transformPending;
 
-    QOpenGLTextureBlitter blackBlitter;
-    QOpenGLTexture *blackTexture;
+    QOpenGLTextureBlitter transformOverlayBlitter;
+    QOpenGLTexture *transformOverlayTexture;
     QBasicTimer transformAnimationTimer;
     qreal transformAnimationOpacity;
     bool transformAnimationUp;
+
+    QOpenGLTextureBlitter suspendOverlayBlitter;
+    QOpenGLTexture *suspendOverlayTexture;
+    QBasicTimer suspendAnimationTimer;
+    qreal suspendAnimationOpacity;
+    bool suspendAnimationUp;
+
     SocketServer *socketServer;
 };
 
