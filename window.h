@@ -106,6 +106,7 @@ private:
     QPointF m_mouseOffset;
     QPointF m_initialMousePos;
     QWaylandOutput::Transform transform, transformPending;
+    bool suspended;
 
     QOpenGLTextureBlitter transformOverlayBlitter;
     QOpenGLTexture *transformOverlayTexture;

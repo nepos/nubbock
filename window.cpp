@@ -96,8 +96,10 @@ Window::Window(QWaylandOutput::Transform transform)
                 setTransform(QWaylandOutput::Transform270);
         }
 
-        const bool suspended = obj["suspended"].toBool();
-        setSuspended(suspended);
+        if (obj.contains("obj")) {
+            const bool suspended = obj["suspended"].toBool();
+            setSuspended(suspended);
+        }
     });
 
     socketServer->start();
@@ -124,6 +126,9 @@ void Window::initializeGL()
 
     transformOverlayTexture = new QOpenGLTexture(black, QOpenGLTexture::DontGenerateMipMaps);
     suspendOverlayTexture = new QOpenGLTexture(black, QOpenGLTexture::DontGenerateMipMaps);
+
+    transformAnimationOpacity = 0.0f;
+    suspendAnimationOpacity = 0.0f;
 
     m_textureBlitter.create();
     transformOverlayBlitter.create();
@@ -165,8 +170,9 @@ void Window::paintGL()
         qWarning() << "Unsupported transform" << transform;
     }
 
-    QMatrix4x4 targetTransform = QOpenGLTextureBlitter::targetTransform(QRect(QPoint(0, 0), m_backgroundImageSize),
-                                                                        QRect(QPoint(0, 0), sz));
+    QMatrix4x4 targetTransform =
+            QOpenGLTextureBlitter::targetTransform(QRect(QPoint(0, 0), m_backgroundImageSize),
+                                                   QRect(QPoint(0, 0), sz));
     targetTransform.rotate(angle, 0.0f, 0.0f, 1.0f);
 
     if (m_backgroundTexture)
@@ -262,15 +268,17 @@ void Window::timerEvent(QTimerEvent *event)
             suspendAnimationOpacity += 0.05;
             if (suspendAnimationOpacity >= 1.0f) {
                 suspendAnimationOpacity = 1.0f;
+                suspended = true;
+                suspendAnimationTimer.stop();
             }
         } else {
             suspendAnimationOpacity -= 0.05;
             if (suspendAnimationOpacity <= 0.0f) {
                 suspendAnimationOpacity = 0.0f;
+                suspended = false;
+                suspendAnimationTimer.stop();
             }
         }
-
-        suspendAnimationTimer.stop();
     }
 
     update();
@@ -288,10 +296,13 @@ void Window::setTransform(QWaylandOutput::Transform _transform)
     transformAnimationTimer.start(20, this);
 }
 
-void Window::setSuspended(bool suspended)
+void Window::setSuspended(bool _suspended)
 {
+    if (suspended == _suspended)
+        return;
+
     suspendAnimationTimer.stop();
-    suspendAnimationUp = suspended;
+    suspendAnimationUp = _suspended;
     suspendAnimationTimer.start(20, this);
 }
 
