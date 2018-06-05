@@ -287,7 +287,7 @@ void Window::timerEvent(QTimerEvent *event)
 
 void Window::setTransform(QWaylandOutput::Transform _transform)
 {
-    if (transform == _transform)
+    if (!transformAnimationTimer.isActive() && transform == _transform)
         return;
 
     if (transformAnimationTimer.isActive() && transformPending == _transform)
