@@ -289,6 +289,9 @@ void Window::setTransform(QWaylandOutput::Transform _transform)
     if (transform == _transform)
         return;
 
+    if (transformAnimationTimer.isActive() && transformPending == _transform)
+        return;
+
     transformAnimationTimer.stop();
     transformPending = _transform;
     transformAnimationOpacity = 0.0f;
