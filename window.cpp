@@ -87,7 +87,7 @@ Window::Window(QWaylandOutput::Transform transform)
     QObject::connect(socketServer, &SocketServer::jsonReceived, [this](const QJsonObject &obj) {
         const QString transform = obj["transform"].toString();
         if (!transform.isEmpty()) {
-            qInfo() << "Setting transform:" << transform;
+            qInfo() << "Transformation change started:" << transform;
 
             if (transform == "90")
                 setTransform(QWaylandOutput::Transform90);
@@ -253,6 +253,7 @@ void Window::timerEvent(QTimerEvent *event)
             if (transformAnimationOpacity >= 1.0f) {
                 transformAnimationOpacity = 1.0f;
                 transformAnimationUp = false;
+                qInfo() << "Transformation change completed:" << transformPending;
                 transform = transformPending;
                 m_compositor->defaultOutput()->setTransform(transform);
             }
