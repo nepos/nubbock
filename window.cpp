@@ -168,6 +168,7 @@ void Window::paintGL()
         break;
     default:
         qWarning() << "Unsupported transform" << transform;
+        return;
     }
 
     QMatrix4x4 targetTransform =
