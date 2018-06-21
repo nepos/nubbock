@@ -188,8 +188,8 @@ void Compositor::onSurfaceCreated(QWaylandSurface *surface)
     connect(surface, &QWaylandSurface::surfaceDestroyed, this, &Compositor::surfaceDestroyed);
     connect(surface, &QWaylandSurface::hasContentChanged, this, &Compositor::surfaceHasContentChanged);
     connect(surface, &QWaylandSurface::redraw, this, &Compositor::triggerRender);
-
     connect(surface, &QWaylandSurface::subsurfacePositionChanged, this, &Compositor::onSubsurfacePositionChanged);
+
     View *view = new View(this);
     view->setSurface(surface);
     view->setOutput(outputFor(m_window));
@@ -215,6 +215,16 @@ void Compositor::surfaceHasContentChanged()
 
 void Compositor::surfaceDestroyed()
 {
+    QWaylandSurface *surface = qobject_cast<QWaylandSurface*>(sender());
+    View *view = findView(surface);
+
+    qInfo() << "SURFACE DESTROYED" << surface << "view" << view;
+
+    if (view) {
+        m_views.removeAll(view);
+        delete view;
+    }
+
     triggerRender();
 }
 
