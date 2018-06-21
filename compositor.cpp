@@ -69,7 +69,6 @@ View::View(Compositor *compositor)
     : m_compositor(compositor)
     , m_textureTarget(GL_TEXTURE_2D)
     , m_texture(0)
-    , m_wlShellSurface(nullptr)
     , m_parentView(nullptr)
 {}
 
@@ -113,9 +112,7 @@ void View::onOffsetForNextFrame(const QPoint &offset)
 Compositor::Compositor(QWindow *window)
     : QWaylandCompositor()
     , m_window(window)
-    , m_wlShell(new QWaylandWlShell(this))
 {
-    connect(m_wlShell, &QWaylandWlShell::wlShellSurfaceCreated, this, &Compositor::onWlShellSurfaceCreated);
 }
 
 Compositor::~Compositor()
@@ -193,58 +190,6 @@ View * Compositor::findView(const QWaylandSurface *s) const
     return Q_NULLPTR;
 }
 
-void Compositor::onWlShellSurfaceCreated(QWaylandWlShellSurface *wlShellSurface)
-{
-    connect(wlShellSurface, &QWaylandWlShellSurface::startMove, this, &Compositor::onStartMove);
-    connect(wlShellSurface, &QWaylandWlShellSurface::startResize, this, &Compositor::onWlStartResize);
-    connect(wlShellSurface, &QWaylandWlShellSurface::setTransient, this, &Compositor::onSetTransient);
-    connect(wlShellSurface, &QWaylandWlShellSurface::setPopup, this, &Compositor::onSetPopup);
-
-    View *view = findView(wlShellSurface->surface());
-    Q_ASSERT(view);
-    view->m_wlShellSurface = wlShellSurface;
-}
-
-void Compositor::onStartMove()
-{
-    closePopups();
-    emit startMove();
-}
-
-void Compositor::onWlStartResize(QWaylandSeat *, QWaylandWlShellSurface::ResizeEdge edges)
-{
-    closePopups();
-    emit startResize(int(edges), false);
-}
-
-void Compositor::onSetTransient(QWaylandSurface *parent, const QPoint &relativeToParent, bool inactive)
-{
-    Q_UNUSED(inactive);
-
-    QWaylandWlShellSurface *wlShellSurface = qobject_cast<QWaylandWlShellSurface*>(sender());
-    View *view = findView(wlShellSurface->surface());
-
-    if (view) {
-        raise(view);
-        View *parentView = findView(parent);
-        if (parentView)
-            view->setPosition(parentView->position() + relativeToParent);
-    }
-}
-
-void Compositor::onSetPopup(QWaylandSeat *seat, QWaylandSurface *parent, const QPoint &relativeToParent)
-{
-    Q_UNUSED(seat);
-    QWaylandWlShellSurface *surface = qobject_cast<QWaylandWlShellSurface*>(sender());
-    View *view = findView(surface->surface());
-    if (view) {
-        raise(view);
-        View *parentView = findView(parent);
-        if (parentView)
-            view->setPosition(parentView->position() + relativeToParent);
-    }
-}
-
 void Compositor::onSubsurfaceChanged(QWaylandSurface *child, QWaylandSurface *parent)
 {
     View *view = findView(child);
@@ -306,19 +251,8 @@ void Compositor::adjustCursorSurface(QWaylandSurface *surface, int hotspotX, int
         updateCursor();
 }
 
-void Compositor::closePopups()
-{
-    m_wlShell->closeAllPopups();
-}
-
 void Compositor::handleMouseEvent(QWaylandView *target, QMouseEvent *me)
 {
-    auto popClient = popupClient();
-    if (target && me->type() == QEvent::MouseButtonPress
-            && popClient && popClient != target->surface()->client()) {
-        closePopups();
-    }
-
     QWaylandSeat *input = defaultSeat();
     QWaylandSurface *surface = target ? target->surface() : nullptr;
     switch (me->type()) {
@@ -345,22 +279,6 @@ void Compositor::handleTouchEvent(QWaylandView *target, QTouchEvent *e)
     QWaylandSeat *input = defaultSeat();
 
     input->sendFullTouchEvent(surface, e);
-}
-
-void Compositor::handleResize(View *target, const QSize &initialSize, const QPoint &delta, int edge)
-{
-    QWaylandWlShellSurface *wlShellSurface = target->m_wlShellSurface;
-    if (wlShellSurface) {
-        QWaylandWlShellSurface::ResizeEdge edges = QWaylandWlShellSurface::ResizeEdge(edge);
-        QSize newSize = wlShellSurface->sizeForResize(initialSize, delta, edges);
-        wlShellSurface->sendConfigure(newSize, edges);
-    }
-}
-
-QWaylandClient *Compositor::popupClient() const
-{
-    auto client = m_wlShell->popupClient();
-    return client;
 }
 
 // We only have a flat list of views, plus pointers from child to parent,
