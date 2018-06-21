@@ -216,11 +216,13 @@ void Compositor::surfaceHasContentChanged()
 void Compositor::surfaceDestroyed()
 {
     QWaylandSurface *surface = qobject_cast<QWaylandSurface*>(sender());
-    View *view = findView(surface);
 
-    qInfo() << "SURFACE DESTROYED" << surface << "view" << view;
+    // purge all views with no surface
+    while (true) {
+        View *view = findView(Q_NULLPTR);
+        if (!view)
+            break;
 
-    if (view) {
         m_views.removeAll(view);
         delete view;
     }
