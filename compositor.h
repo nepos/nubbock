@@ -105,7 +105,6 @@ public:
     void endRender();
 
     QList<View*> views() const { return m_views; }
-    void raise(View *view);
 
     void handleMouseEvent(QWaylandView *target, QMouseEvent *me);
     void handleTouchEvent(QWaylandView *target, QTouchEvent *e);

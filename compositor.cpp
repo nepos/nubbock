@@ -280,36 +280,3 @@ void Compositor::handleTouchEvent(QWaylandView *target, QTouchEvent *e)
 
     input->sendFullTouchEvent(surface, e);
 }
-
-// We only have a flat list of views, plus pointers from child to parent,
-// so maintaining a stacking order gets a bit complex. A better data
-// structure is left as an exercise for the reader.
-
-static int findEndOfChildTree(const QList<View*> &list, int index)
-{
-    int n = list.count();
-    View *parent = list.at(index);
-    while (index + 1 < n) {
-        if (list.at(index+1)->parentView() != parent)
-            break;
-        index = findEndOfChildTree(list, index + 1);
-    }
-    return index;
-}
-
-void Compositor::raise(View *view)
-{
-    int startPos = m_views.indexOf(view);
-    int endPos = findEndOfChildTree(m_views, startPos);
-
-    int n = m_views.count();
-    int tail =  n - endPos - 1;
-
-    //bubble sort: move the child tree to the end of the list
-    for (int i = 0; i < tail; i++) {
-        int source = endPos + 1 + i;
-        int dest = startPos + i;
-        for (int j = source; j > dest; j--)
-            m_views.swap(j, j-1);
-    }
-}

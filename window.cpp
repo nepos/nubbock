@@ -357,7 +357,6 @@ void Window::mousePressEvent(QMouseEvent *e)
             return;
         }
 
-        m_compositor->raise(m_mouseView);
         m_initialMousePos = p;
         m_mouseOffset = p - m_mouseView->position();
 
