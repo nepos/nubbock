@@ -398,6 +398,11 @@ void Window::touchEvent(QTouchEvent *e)
 
     QWaylandSurface *surface = view->surface();
 
+    if (!surface) {
+        qWarning() << __func__ << "no surface?";
+        return;
+    }
+
     if (e->type() == QEvent::TouchCancel) {
         input->sendTouchCancelEvent(surface->client());
         return;
