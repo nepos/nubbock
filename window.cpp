@@ -354,9 +354,11 @@ void Window::mousePressEvent(QMouseEvent *e)
     if (m_mouseView.isNull()) {
         m_mouseView = viewAt(p);
         if (!m_mouseView) {
+            m_compositor->closePopups();
             return;
         }
 
+        m_compositor->raise(m_mouseView);
         m_initialMousePos = p;
         m_mouseOffset = p - m_mouseView->position();
 

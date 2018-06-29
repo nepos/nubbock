@@ -52,12 +52,18 @@
 #define WINDOWCOMPOSITOR_H
 
 #include <QtWaylandCompositor/QWaylandCompositor>
+#include <QtWaylandCompositor/QWaylandSurface>
 #include <QtWaylandCompositor/QWaylandView>
+#include <QtWaylandCompositor/QWaylandWlShellSurface>
+#include <QtWaylandCompositor/QWaylandXdgSurfaceV5>
 #include <QTimer>
 #include <QOpenGLTextureBlitter>
 
 QT_BEGIN_NAMESPACE
 
+class QWaylandWlShell;
+class QWaylandWlShellSurface;
+class QWaylandXdgShellV5;
 class QOpenGLTexture;
 class Compositor;
 
@@ -72,10 +78,11 @@ public:
     void setPosition(const QPointF &pos) { m_position = pos; }
     QSize size() const;
     bool isCursor() const;
+    bool hasShell() const { return m_wlShellSurface; }
     void setParentView(View *parent) { m_parentView = parent; }
     View *parentView() const { return m_parentView; }
     QPointF parentPosition() const { return m_parentView ? (m_parentView->position() + m_parentView->parentPosition()) : QPointF(); }
-    QSize windowSize() { return surface() ? surface()->size() : m_size; }
+    QSize windowSize() { return m_xdgSurface ? m_xdgSurface->windowGeometry().size() :  surface() ? surface()->size() : m_size; }
     QPoint offset() const { return m_offset; }
 
 private:
@@ -86,10 +93,17 @@ private:
     QOpenGLTextureBlitter::Origin m_origin;
     QPointF m_position;
     QSize m_size;
+    QWaylandWlShellSurface *m_wlShellSurface;
+    QWaylandXdgSurfaceV5 *m_xdgSurface;
+    QWaylandXdgPopupV5 *m_xdgPopup;
     View *m_parentView;
     QPoint m_offset;
 
 public slots:
+    void onXdgSetMaximized();
+    void onXdgUnsetMaximized();
+    void onXdgSetFullscreen(QWaylandOutput *output);
+    void onXdgUnsetFullscreen();
     void onOffsetForNextFrame(const QPoint &offset);
 };
 
@@ -105,9 +119,15 @@ public:
     void endRender();
 
     QList<View*> views() const { return m_views; }
+    void raise(View *view);
 
     void handleMouseEvent(QWaylandView *target, QMouseEvent *me);
     void handleTouchEvent(QWaylandView *target, QTouchEvent *e);
+
+    void handleResize(View *target, const QSize &initialSize, const QPoint &delta, int edge);
+
+    QWaylandClient *popupClient() const;
+    void closePopups();
 
 protected:
     void adjustCursorSurface(QWaylandSurface *surface, int hotspotX, int hotspotY);
@@ -123,8 +143,17 @@ public slots:
 private slots:
     void surfaceHasContentChanged();
     void surfaceDestroyed();
+    void onStartMove();
+    void onWlStartResize(QWaylandSeat *seat, QWaylandWlShellSurface::ResizeEdge edges);
+    void onXdgStartResize(QWaylandSeat *seat, QWaylandXdgSurfaceV5::ResizeEdge edges);
 
     void onSurfaceCreated(QWaylandSurface *surface);
+    void onWlShellSurfaceCreated(QWaylandWlShellSurface *wlShellSurface);
+    void onXdgSurfaceCreated(QWaylandXdgSurfaceV5 *xdgSurface);
+    void onXdgPopupRequested(QWaylandSurface *surface, QWaylandSurface *parent, QWaylandSeat *seat,
+                             const QPoint &position, const QWaylandResource &resource);
+    void onSetTransient(QWaylandSurface *parentSurface, const QPoint &relativeToParent, bool inactive);
+    void onSetPopup(QWaylandSeat *seat, QWaylandSurface *parent, const QPoint &relativeToParent);
 
     void onSubsurfaceChanged(QWaylandSurface *child, QWaylandSurface *parent);
     void onSubsurfacePositionChanged(const QPoint &position);
@@ -135,6 +164,8 @@ private:
     View *findView(const QWaylandSurface *s) const;
     QWindow *m_window;
     QList<View*> m_views;
+    QWaylandWlShell *m_wlShell;
+    QWaylandXdgShellV5 *m_xdgShell;
     QWaylandView m_cursorView;
     int m_cursorHotspotX;
     int m_cursorHotspotY;
