@@ -347,41 +347,6 @@ QPointF Window::transformPosition(const QPointF p)
     return QPointF(x, y);
 }
 
-void Window::mousePressEvent(QMouseEvent *e)
-{
-    QPointF p = transformPosition(e->localPos());
-
-    if (m_mouseView.isNull()) {
-        m_mouseView = viewAt(p);
-        if (!m_mouseView) {
-            m_compositor->closePopups();
-            return;
-        }
-
-        m_compositor->raise(m_mouseView);
-        m_initialMousePos = p;
-        m_mouseOffset = p - m_mouseView->position();
-
-        QMouseEvent moveEvent(QEvent::MouseMove, p, e->globalPos(), Qt::NoButton, Qt::NoButton, e->modifiers());
-        sendMouseEvent(&moveEvent, p, m_mouseView);
-    }
-
-    sendMouseEvent(e, p, m_mouseView);
-}
-
-void Window::mouseReleaseEvent(QMouseEvent *e)
-{
-    if (e->buttons() == Qt::NoButton)
-        m_mouseView = 0;
-}
-
-void Window::mouseMoveEvent(QMouseEvent *e)
-{
-    QPointF p = transformPosition(e->localPos());
-    View *view = m_mouseView ? m_mouseView.data() : viewAt(p);
-    sendMouseEvent(e, p, view);
-}
-
 void Window::touchEvent(QTouchEvent *e)
 {
     QWaylandSeat *input = m_compositor->defaultSeat();
