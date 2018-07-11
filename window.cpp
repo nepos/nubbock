@@ -366,13 +366,19 @@ void Window::mousePressEvent(QMouseEvent *e)
         sendMouseEvent(&moveEvent, p, m_mouseView);
     }
 
+    qInfo() << "XXXXX" << __func__ << p;
+
     sendMouseEvent(e, p, m_mouseView);
 }
 
 void Window::mouseReleaseEvent(QMouseEvent *e)
 {
+    QPointF p = transformPosition(e->localPos());
+
     if (e->buttons() == Qt::NoButton)
         m_mouseView = 0;
+
+    sendMouseEvent(e, p, m_mouseView);
 }
 
 void Window::mouseMoveEvent(QMouseEvent *e)
@@ -392,6 +398,8 @@ void Window::touchEvent(QTouchEvent *e)
 
     QPointF p = transformPosition(points.at(0).normalizedPos());
     View *view = viewAt(p);
+
+    qInfo() << "XXXXX" << __func__ << p << view;
 
     if (!view)
         return;
